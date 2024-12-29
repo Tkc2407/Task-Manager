@@ -1,59 +1,93 @@
-// import express from "express";
-// import Task from "../../lib/models/Task";
-// import authMiddleware from "../../lib/middleware/authMiddleware";
-// import { Request, Response } from "express";
+import { NextRequest, NextResponse } from "next/server";
+import Task from "../../lib/models/Task";
+import authMiddleware from "../../lib/middleware/authMiddleware"; // Same middleware logic
 
-// const router = express.Router();
+// Create Task
+export async function POST(req: NextRequest) {
+  try {
+    const decoded = authMiddleware(req); // Check user authentication
+    const userId = decoded?.userId;
 
-// // Create Task
-// router.post("/", authMiddleware, async (req: Request, res: Response) => {
-//   try {
-//     const task = await Task.create({ ...req.body, userId: req.user.userId });
-//     res.status(201).json(task);
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
+    if (!userId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-// // Get Tasks with Filters
-// router.get("/", authMiddleware, async (req: Request, res: Response) => {
-//   try {
-//     const { priority, status } = req.query;
-//     const filters: any = { userId: req.user.userId };
-//     if (priority) filters.priority = priority;
-//     if (status) filters.status = status;
+    const taskData = await req.json();
+    const task = await Task.create({ ...taskData, userId });
 
-//     const tasks = await Task.find(filters).sort({ startTime: 1, endTime: 1 });
-//     res.status(200).json(tasks);
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
+    return NextResponse.json(task, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}
 
-// // Update Task
-// router.put("/:id", authMiddleware, async (req: Request, res: Response) => {
-//   try {
-//     const task = await Task.findByIdAndUpdate(req.params.id, req.body, {
-//       new: true,
-//     });
-//     if (!task) return res.status(404).json({ message: "Task not found" });
+// Get Tasks with Filters
+export async function GET(req: NextRequest) {
+  try {
+    const decoded = authMiddleware(req); // Check user authentication
+    const userId = decoded?.userId;
 
-//     res.status(200).json(task);
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
+    if (!userId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
 
-// // Delete Task
-// router.delete("/:id", authMiddleware, async (req: Request, res: Response) => {
-//   try {
-//     const task = await Task.findByIdAndDelete(req.params.id);
-//     if (!task) return res.status(404).json({ message: "Task not found" });
+    const priority = req.nextUrl.searchParams.get("priority");
+    const status = req.nextUrl.searchParams.get("status");
+    const filters: any = { userId };
+    if (priority) filters.priority = priority;
+    if (status) filters.status = status;
 
-//     res.status(200).json({ message: "Task deleted" });
-//   } catch (error) {
-//     res.status(500).json({ message: "Server error" });
-//   }
-// });
+    const tasks = await Task.find(filters).sort({ startTime: 1, endTime: 1 });
 
-// export default router;
+    return NextResponse.json(tasks, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}
+
+// Update Task
+export async function PUT(req: NextRequest) {
+  try {
+    const decoded = authMiddleware(req); // Check user authentication
+    const userId = decoded?.userId;
+
+    if (!userId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const taskId = req.nextUrl.pathname.split("/").pop(); // Extract task ID from URL
+    const updatedData = await req.json();
+
+    const task = await Task.findByIdAndUpdate(taskId, updatedData, {
+      new: true,
+    });
+    if (!task)
+      return NextResponse.json({ message: "Task not found" }, { status: 404 });
+
+    return NextResponse.json(task, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}
+
+// Delete Task
+export async function DELETE(req: NextRequest) {
+  try {
+    const decoded = authMiddleware(req); // Check user authentication
+    const userId = decoded?.userId;
+
+    if (!userId) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    }
+
+    const taskId = req.nextUrl.pathname.split("/").pop(); // Extract task ID from URL
+
+    const task = await Task.findByIdAndDelete(taskId);
+    if (!task)
+      return NextResponse.json({ message: "Task not found" }, { status: 404 });
+
+    return NextResponse.json({ message: "Task deleted" }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ message: "Server error" }, { status: 500 });
+  }
+}

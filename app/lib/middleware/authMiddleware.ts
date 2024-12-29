@@ -1,27 +1,25 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { NextRequest } from "next/server";
+import jwt from "jsonwebtoken";
 
 interface UserPayload {
-    userId: string;
+  userId: string;
 }
 
-declare global {
-    namespace Express {
-        interface Request {
-            user?: UserPayload;
-        }
-    }
-}
+const authMiddleware = (req: NextRequest): UserPayload | null => {
+  const token = req.headers.get("Authorization")?.split(" ")[1];
+  if (!token) {
+    throw new Error("No token provided");
+  }
 
-export default (req: Request, res: Response, next: NextFunction) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'No token provided' });
-
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as UserPayload;
-        req.user = decoded;
-        next();
-    } catch (error) {
-        res.status(401).json({ message: 'Invalid token' });
-    }
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET as string
+    ) as UserPayload;
+    return decoded;
+  } catch (error) {
+    throw new Error("Invalid token");
+  }
 };
+
+export default authMiddleware;
